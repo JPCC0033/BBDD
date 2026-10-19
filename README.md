@@ -1,1 +1,1 @@
-Repositori per a guardar coses pel curs del CIFOR - Programació amb SQL i bases de dades relacionals
+Repositori per a guardar els materials pel curs del CIFO - Programació amb SQL i bases de dades relacionals
