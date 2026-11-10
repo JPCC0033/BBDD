@@ -1,38 +1,22 @@
+DROP DATABASE catchgene;
+
 CREATE DATABASE IF NOT EXISTS catchgene;
 -- CREATE SCHEMA IF NOT EXISTS catchgene;
 use catchgene;
 
 -- creació taules
--- EXPERIMENTS
-CREATE TABLE IF NOT EXISTS experiments(
-    pk_id_exp int NOT NULL PRIMARY KEY,
-    date_sequencing DATE NOT NULL,
-    fk_id_biosample int,
-    fk_id_platform int
+CREATE TABLE IF NOT EXISTS tissues(
+    pk_id_tissue int NOT NULL PRIMARY KEY,
+    name_tissue varchar(20) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS histone_mark(
-    pk_fk_id_exp int NOT NULL PRIMARY KEY,
-    histone_mark varchar(20) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS transcription(
-    pk_fk_id_exp int NOT NULL PRIMARY KEY,
-    trans_type varchar(20) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS transcription_factor(
-    pk_fk_id_exp int NOT NULL PRIMARY KEY,
-    TF varchar(20) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS DNA_accessibility(
-    pk_fk_id_exp int NOT NULL PRIMARY KEY,
-    DNAA_type varchar(20) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS platforms(
-    pk_id_platform int NOT NULL PRIMARY KEY,
-    name_platform varchar(20) NOT NULL
+CREATE TABLE IF NOT EXISTS organisms(
+    pk_id_organism int NOT NULL PRIMARY KEY,
+    scientific_name varchar(50) UNIQUE NOT NULL,
+    nom_cat varchar(50),
+    taxid int UNIQUE NOT NULL
 );
 
--- BIOSAMPLES i ASSEMBLIES
 CREATE TABLE IF NOT EXISTS biosamples(
     pk_id_biosample int NOT NULL PRIMARY KEY,
     purchase_lot int NOT NULL,
@@ -43,104 +27,144 @@ CREATE TABLE IF NOT EXISTS biosamples(
     fk_id_organism int,
     CONSTRAINT age_unsigned CHECK (age >= 0)
 );
-CREATE TABLE IF NOT EXISTS tissues(
-    pk_id_tissue int NOT NULL PRIMARY KEY,
-    name_tissue varchar(20) NOT NULL
+    -- foreign keys biosamples
+    ALTER TABLE biosamples 
+    ADD CONSTRAINT bios_tis 
+        FOREIGN KEY (fk_id_tissue) REFERENCES tissues(pk_id_tissue)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    ADD CONSTRAINT bios_org 
+        FOREIGN KEY (fk_id_organism) REFERENCES organisms(pk_id_organism)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+CREATE TABLE IF NOT EXISTS platforms(
+    pk_id_platform int NOT NULL PRIMARY KEY,
+    name_platform varchar(20) NOT NULL
 );
 
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (1, 'Cerebral cortex');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (2, 'Prefrontal cortex');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (3, 'Cerebellum');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (4, 'Brainstem');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (5, 'Thalamus');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (6, 'Hippocampus');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (7, 'Amygdala');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (8, 'Heart');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (9, 'Lung');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (10, 'Stomach');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (11, 'Small intestine');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (12, 'Large intestine');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (13, 'Liver');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (14, 'Pancreas');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (15, 'Kidney');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (16, 'Bladder');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (17, 'Skin');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (18, 'Spleen');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (19, 'Bone');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (20, 'Bone marrow');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (21, 'Testis');
-INSERT INTO tissues (pk_id_tissue, name_tissue) VALUES (22, 'Ovaries');
-
-CREATE TABLE IF NOT EXISTS organisms(
-    pk_id_organism int NOT NULL PRIMARY KEY,
-    scientific_name varchar(20) UNIQUE NOT NULL,
-    nom_cat varchar(20),
-    taxid int UNIQUE NOT NULL
+CREATE TABLE IF NOT EXISTS histone_catalog (
+    pk_id_hm int NOT NULL PRIMARY KEY,
+    name_hm varchar(20) NOT NULL UNIQUE
 );
+CREATE TABLE IF NOT EXISTS tf_catalog (
+    pk_id_tf int NOT NULL PRIMARY KEY,
+    name_tf varchar(20) NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS accessibility_catalog (
+    pk_id_da int NOT NULL PRIMARY KEY,
+    name_da varchar(20) NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS transcription_catalog(
+    pk_id_tr int NOT NULL PRIMARY KEY,
+    name_tr varchar(20) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS experiments(
+    pk_id_exp int NOT NULL PRIMARY KEY,
+    date_sequencing DATE NOT NULL,
+    fk_id_biosample int,
+    fk_id_platform int
+);
+-- foreign keys
+    ALTER TABLE experiments 
+        ADD CONSTRAINT exp_plat 
+            FOREIGN KEY (fk_id_platform) REFERENCES platforms(pk_id_platform)
+            ON UPDATE CASCADE ON DELETE RESTRICT,
+        ADD CONSTRAINT exp_bios 
+        FOREIGN KEY (fk_id_biosample) REFERENCES biosamples(pk_id_biosample)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
+-- tables ISA
+CREATE TABLE IF NOT EXISTS exp_hm(
+    pk_fk_id_exp int NOT NULL PRIMARY KEY,
+    fk_id_hm int NOT NULL,
+    antibody varchar(50)
+);
+CREATE TABLE IF NOT EXISTS exp_tf(
+    pk_fk_id_exp int NOT NULL PRIMARY KEY,
+    fk_id_tf int NOT NULL,
+    antibody varchar(50)
+);
+CREATE TABLE IF NOT EXISTS exp_da(
+    pk_fk_id_exp int NOT NULL PRIMARY KEY,
+    fk_id_da int NOT NULL,
+    technique_used varchar(100) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS exp_tr(
+    pk_fk_id_exp int NOT NULL PRIMARY KEY,
+    fk_id_tr int NOT NULL,
+    rna_extraction_kit varchar(100) NOT NULL
+);
+
+-- foreign keys
+    ALTER TABLE exp_hm 
+        ADD CONSTRAINT exp_exphm 
+            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+            ON UPDATE CASCADE ON DELETE CASCADE,
+        ADD CONSTRAINT hm_exphm 
+        FOREIGN KEY (fk_id_hm) REFERENCES histone_catalog(pk_id_hm)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
+    ALTER TABLE exp_tr 
+        ADD CONSTRAINT exp_exptr 
+            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+            ON UPDATE CASCADE ON DELETE CASCADE,
+        ADD CONSTRAINT tr_exptr 
+            FOREIGN KEY (fk_id_tr) REFERENCES transcription_catalog(pk_id_tr)
+            ON UPDATE CASCADE ON DELETE RESTRICT;
+    ALTER TABLE exp_tf 
+        ADD CONSTRAINT exp_exptf
+            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+            ON UPDATE CASCADE ON DELETE CASCADE,
+        ADD CONSTRAINT tf_exptf
+            FOREIGN KEY (fk_id_tf) REFERENCES tf_catalog(pk_id_tf)
+            ON UPDATE CASCADE ON DELETE RESTRICT;
+    ALTER TABLE exp_da 
+        ADD CONSTRAINT exp_expda
+            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+            ON UPDATE CASCADE ON DELETE CASCADE,
+        ADD CONSTRAINT da_expda
+            FOREIGN KEY (fk_id_da) REFERENCES accessibility_catalog(pk_id_da)
+            ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+
 CREATE TABLE IF NOT EXISTS assemblies(
     pk_id_ass int NOT NULL PRIMARY KEY,
-    url_link varchar(255) NOT NULL,
+    url_link varchar(255) NOT NULL UNIQUE,
     busco_score decimal(10,2),
     name_ass varchar(100),
     date_of_release DATE,
-    version varchar(30) NOT NULL UNIQUE,
+    version_ass varchar(50) NOT NULL UNIQUE,
     fk_id_organism int
 );
--- genes
+    -- foreign keys
+    ALTER TABLE assemblies 
+    ADD CONSTRAINT ass_org 
+        FOREIGN KEY (fk_id_organism) REFERENCES organisms(pk_id_organism)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
 CREATE TABLE IF NOT EXISTS gene_ontologies(
     pk_id_GO int NOT NULL PRIMARY KEY,
     desc_GO varchar(255),
     GO_number int NOT NULL UNIQUE
 );
 
-INSERT INTO gene_ontologies (pk_id_GO, desc_GO, GO_number) VALUES (1, 'Apoptotic process', 0006915);
-INSERT INTO gene_ontologies (pk_id_GO, desc_GO, GO_number) VALUES (2, 'Signal transduction', 0007165);
-INSERT INTO gene_ontologies (pk_id_GO, desc_GO, GO_number) VALUES (3, 'DNA repair', 0006281);
-INSERT INTO gene_ontologies (pk_id_GO, desc_GO, GO_number) VALUES (4, 'Metabolic process', 0008152);
-INSERT INTO gene_ontologies (pk_id_GO, desc_GO, GO_number) VALUES (5, 'Transmembrane transporter activity', 0005215);
-INSERT INTO gene_ontologies (pk_id_GO, desc_GO, GO_number) VALUES (6, 'Structural molecule activity receptor protein tyrosine kinase activity', 0005198);
-
 CREATE TABLE IF NOT EXISTS genes(
-    name_gene varchar(20),
+    pk_id_gene int NOT NULL PRIMARY KEY,
+    name_gene varchar(20) UNIQUE,
     description_gene varchar(255),    
     fk_id_GO int
-    pk_id_gene int NOT NULL PRIMARY KEY,
-);
 
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("TP53", "Tumor suppressor transcription factor that activates cell cycle arrest (p21) or apoptosis (BAX/PUMA)", 1, 1);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("MYC", "Proto-oncogene bHLH transcription factor that promotes global cell growth, translation, and proliferation", 1, 2);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("SRY", "Master-switch HMG-box transcription factor on the Y chromosome that initiates male sex determination", 1, 3);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("FOXP2", "Forkhead-box transcription factor crucial for synaptic plasticity and speech motor-sequence learning", 1, 4);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("HOXA1", "A specific homeobox gene from the HOXA cluster encoding a transcription factor essential for anterior-posterior patterning and hindbrain development", 1, 5);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("BRCA1", "Nuclear phosphoprotein essential for double-strand DNA break repair via homologous recombination", 2, 6);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("BRCA2", "Works with BRCA1; binds single-stranded DNA and recruits RAD51 to double-strand breaks for error-free repair", 2, 7);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("KRAS", "Small membrane-associated GTPases that act as molecular on/off switches for cell growth", 3, 8);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("EGFR", "Transmembrane receptor tyrosine kinase that activates upstream mitogenic pathways upon ligand binding", 3, 9);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("ERBB2", "Orphan receptor tyrosine kinase locked in an active conformation to amplify cell proliferation cascades", 3, 10);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("APC", "Scaffold protein in the beta-catenin destruction complex; acts as a negative regulator of the Wnt pathway", 3, 11);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("SHH", "Secreted morphogen establishing developmental gradients through the Patched-Smoothened pathway", 3, 12);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("MC1R", "Gs-coupled GPCR on melanocytes that controls the intracellular shift between eumelanin and pheomelanin", 3, 13);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("DRD4", "D4 subtype Gi/o-coupled dopamine receptor that inhibits adenylyl cyclase to reduce cAMP levels", 3, 14);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("PTEN", "Dual-specificity phosphatase that counteracts the PI3K/Akt pro-survival pathway by converting PIP3 to PIP2", 4, 15);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("VHL", "Component of an E3 ubiquitin ligase that marks HIF-1a for proteasomal degradation under normal oxygen levels", 4, 16);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("COMT", "Enzyme causing O-methylation and inactivation of dopamine and norepinephrine in the prefrontal cortex", 4, 17);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("MAOA", "Mitochondrial enzyme driving the oxidative deamination of serotonin, norepinephrine, and dopamine", 4, 18);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("MTHFR", "Rate-limiting cytosolic enzyme converting 5,10-methylenetetrahydrofolate to 5-methyltetrahydrofolate", 4, 19);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("PCSK9", "Secreted protease that targets hepatic LDL receptors for lysosomal degradation instead of recycling", 4, 20);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("FTO", "Alpha-ketoglutarate-dependent dioxygenase acting as an mRNA m6A demethylase to modulate appetite pathways", 4, 21);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("LCT", "Brush-border enzyme in the small intestine that hydrolyzes lactose disaccharides into glucose and galactose", 4, 22);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("APOE", "Apolipoprotein lipid transporter in the CNS involved in the clearance and handling of amyloid-beta", 5, 23);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("LDLR", "Cell-surface receptor mediating the endocytosis and clearing of cholesterol-rich LDL particles from the blood", 5, 24);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("CFTR", "ATP-gated ABC transporter chloride channel that regulates fluid viscosity across mucosal surfaces", 5, 25);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("ACE2", "Zinc metalloprotease that regulates blood pressure and acts as the entry receptor for the SARS-CoV-2 virus", 5, 26);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("HTT", "Huntingtin, a massive scaffolding protein required for vesicle transport and cytoskeletal motor anchoring", 6, 27);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("ACTN3", "Structural protein in skeletal muscle fast-twitch Z-discs anchoring internal actin filaments", 6, 28);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("DMD", "Dystrophin, a major structural link anchoring the intracellular F-actin cytoskeleton to the muscle extracellular matrix", 6, 29);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("HBB", "Beta-globin subunit of adult hemoglobin, structurally required for stable oxygen transport in red blood cells", 6, 30);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("SMN1", "Core structural scaffold protein regulating the assembly of snRNPs required for functional pre-mRNA splicing", 6, 31);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("HLA-B", "Polymorphic MHC class I heavy chain glycoprotein that physically holds and displays antigens to CD8+ T cells", 6, 32);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("SNAIL", "Zinc-finger transcription factor; represses E-cadherin to drive epithelial-mesenchymal transition (EMT) during development and fibrosis", 1, 33);
-INSERT INTO genes (name_gene, description_gene, fk_id_GO, pk_id_gene) VALUES ("LOXL2", "Copper-dependent amine oxidase; catalyzes oxidative deamination of lysyl residues to crosslink extracellular matrix collagen", 4, 34);
+);
+    -- foreign keys
+    ALTER TABLE genes 
+        ADD CONSTRAINT GO_genes 
+        FOREIGN KEY (fk_id_GO) REFERENCES gene_ontologies(pk_id_GO)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
 
 -- taules intermitges n:m
 CREATE TABLE IF NOT EXISTS gene_ass(
@@ -151,13 +175,28 @@ CREATE TABLE IF NOT EXISTS gene_ass(
     gene_length decimal(10,2) GENERATED ALWAYS AS (TES - TSS) STORED,
     CONSTRAINT pk_id_gene_ass PRIMARY KEY (pk_fk_id_ass, pk_fk_id_gene)
 );
+-- foreign keys
+ALTER TABLE gene_ass 
+ADD CONSTRAINT GA_assembly 
+    FOREIGN KEY (pk_fk_id_ass) REFERENCES assemblies(pk_id_ass)
+    ON UPDATE CASCADE ON DELETE RESTRICT;
+
 CREATE TABLE IF NOT EXISTS expression(
     pk_fk_id_exp int NOT NULL,
     pk_fk_id_gene int NOT NULL,
     expression_value int,
-    gene_length ENUM("YES","NO") GENERATED ALWAYS AS (expression_value>=5) STORED,
+    gene_expressed ENUM("YES","NO") GENERATED ALWAYS AS (
+        CASE WHEN expression_value >= 5 THEN 'YES' ELSE 'NO' END
+    ) STORED,
     CONSTRAINT pk_id_expression PRIMARY KEY (pk_fk_id_exp, pk_fk_id_gene)
 );
+ALTER TABLE expression 
+    ADD CONSTRAINT exp_expression 
+        FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    ADD CONSTRAINT gen_expression 
+        FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
 
 CREATE TABLE IF NOT EXISTS usuaris (
     pk_id_usuari INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -176,37 +215,37 @@ CREATE TABLE IF NOT EXISTS consultes (
 );
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 --establishing foreign keys
 -- experiments
-ALTER TABLE histone_mark 
-ADD CONSTRAINT exp_hm 
-FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-ON UPDATE CASCADE ON DELETE CASCADE;
 
-ALTER TABLE transcription 
-ADD CONSTRAINT exp_transcription 
-FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-ON UPDATE CASCADE ON DELETE CASCADE;
 
-ALTER TABLE transcription_factor 
-ADD CONSTRAINT exp_TF
-FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-ON UPDATE CASCADE ON DELETE CASCADE;
- 
-ALTER TABLE DNA_accessibility 
-ADD CONSTRAINT exp_DNAA
-FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-ON UPDATE CASCADE ON DELETE CASCADE;
 
-ALTER TABLE experiments 
-ADD CONSTRAINT exp_plat 
-FOREIGN KEY (fk_id_platform) REFERENCES platforms(pk_id_platform)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-ALTER TABLE experiments 
-ADD CONSTRAINT exp_bios 
-FOREIGN KEY (fk_id_biosample) REFERENCES biosamples(pk_id_biosample)
-ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
 -- BIOSAMPLES i ASSEMBLIES
@@ -220,23 +259,10 @@ ADD CONSTRAINT bios_org
 FOREIGN KEY (fk_id_organism) REFERENCES organisms(pk_id_organism)
 ON UPDATE CASCADE ON DELETE RESTRICT;
 
-ALTER TABLE assemblies 
-ADD CONSTRAINT ass_org 
-FOREIGN KEY (fk_id_organism) REFERENCES organisms(pk_id_organism)
-ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
---genes
-ALTER TABLE genes 
-ADD CONSTRAINT GO_genes 
-FOREIGN KEY (fk_id_GO) REFERENCES gene_ontologies(pk_id_GO)
-ON UPDATE CASCADE ON DELETE RESTRICT;
 
---taules intermitges
-ALTER TABLE gene_ass 
-ADD CONSTRAINT GA_assembly 
-FOREIGN KEY (pk_fk_id_ass) REFERENCES assemblies(pk_id_ass)
-ON UPDATE CASCADE ON DELETE RESTRICT;
+
 
 ALTER TABLE gene_ass 
 ADD CONSTRAINT GA_gene
