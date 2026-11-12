@@ -6,15 +6,15 @@ use carreteres;
 -- create tables
 -- carreteres
 CREATE TABLE titularitat(
-    pk_id_titularitat int NOT NULL PRIMARY KEY,
-    titualritat varchar(30) NOT NULL UNIQUE
+    pk_id_titularitat int AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    titularitat varchar(30) NOT NULL UNIQUE
 );
 CREATE TABLE tipus_via(
-    pk_id_tipus_via int NOT NULL PRIMARY KEY,
+    pk_id_tipus_via int AUTO_INCREMENT NOT NULL PRIMARY KEY,
     via varchar(30) NOT NULL UNIQUE
 );
 CREATE TABLE nivell(
-    pk_id_nivell int PRIMARY KEY,
+    pk_id_nivell int AUTO_INCREMENT PRIMARY KEY,
     nivell ENUM("0","1","2","3") NOT NULL,
     color ENUM("groc","verd","taronja","0") NOT NULL
 );
@@ -22,14 +22,14 @@ CREATE TABLE nivell(
 
 
 CREATE TABLE IF NOT EXISTS carreteres(
-    pk_id_carretera int NOT NULL PRIMARY KEY,
-    codi_carretera int NOT NULL,
-    nom_carretera varchar(20) NOT NULL,
+    pk_id_carretera int AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    codi_carretera varchar(15) NOT NULL,
+    nom_carretera varchar(50) NOT NULL,
     fk_id_titularitat int,
     fk_id_tipus_via int,
     fk_id_nivell int,
-    acces_cont int,
-    doble_cal int,
+    acces_cont BOOLEAN,
+    doble_cal BOOLEAN,
     prefix varchar(10),
     senyal varchar(10)
 );
@@ -47,43 +47,43 @@ CREATE TABLE IF NOT EXISTS carreteres(
 
 
 CREATE TABLE IF NOT EXISTS obs_carr(
-    pk_id_obs int PRIMARY KEY,
+    pk_id_obs int AUTO_INCREMENT PRIMARY KEY,
     fk_id_carretera int,
     observacio VARCHAR(100)
 );
     ALTER TABLE obs_carr 
         ADD CONSTRAINT obs_carretera 
             FOREIGN KEY (fk_id_carretera) REFERENCES carreteres(pk_id_carretera)
-            ON UPDATE CASCADE ON DELETE RESTRICT;
+            ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 
 
 CREATE TABLE tipus_tram(
-    pk_id_tipus_tram int PRIMARY KEY,
+    pk_id_tipus_tram int AUTO_INCREMENT PRIMARY KEY,
     tipus_tram VARCHAR(20)
 );
 
 
 CREATE TABLE tipus_terreny(
-    pk_id_tipus_terreny int PRIMARY KEY,
+    pk_id_tipus_terreny int AUTO_INCREMENT PRIMARY KEY,
     tipus_terreny ENUM("pla","pujada","baixada")
 );
 
 
 CREATE TABLE entorns(
-    pk_id_entorn int PRIMARY KEY,
+    pk_id_entorn int AUTO_INCREMENT PRIMARY KEY,
     entorn ENUM("urba","travessa","extraurba")
 );
 
 CREATE TABLE comunitats_autonomes(
-    pk_id_ccaa int PRIMARY KEY,
-    comunitat_autonoma VARCHAR(20)
+    pk_id_ccaa int AUTO_INCREMENT PRIMARY KEY,
+    comunitat_autonoma VARCHAR(50)
 );
 
 CREATE TABLE provincies(
-    pk_id_provincia int PRIMARY KEY,
-    nom_provincia VARCHAR(20),
+    pk_id_provincia int AUTO_INCREMENT PRIMARY KEY,
+    nom_provincia VARCHAR(50),
     fk_id_ccaa int
 );
 -- foreign keys
@@ -98,9 +98,9 @@ CREATE TABLE provincies(
 
 -- trams
 CREATE TABLE IF NOT EXISTS trams(
-    pk_id_tram int PRIMARY KEY,
-    km_inicial int NOT NULL,
-    km_final int NOT NULL,
+    pk_id_tram int AUTO_INCREMENT PRIMARY KEY,
+    km_inicial DECIMAL(10,2) NOT NULL,
+    km_final DECIMAL(10,2) NOT NULL,
     velocitat_limit int,
     sentit varchar(10),
     carrils_danada int,
@@ -112,8 +112,11 @@ CREATE TABLE IF NOT EXISTS trams(
     fk_id_prov_ini int,
     fk_id_prov_fin int,
     fk_id_tipus_terreny int,
-    fk_id_entorn int
+    fk_id_entorn int,
+    CONSTRAINT longitud_positiva CHECK (km_final >= km_inicial)
 );
+
+
 -- foreign keys
     ALTER TABLE trams
         ADD CONSTRAINT tram_carre
@@ -135,12 +138,25 @@ CREATE TABLE IF NOT EXISTS trams(
             FOREIGN KEY (fk_id_prov_fin) REFERENCES provincies(pk_id_provincia)
             ON UPDATE CASCADE ON DELETE RESTRICT;
 
-            
+-- trigger per evitar errors en calcular la longitud del tram.. un tram amb km final més petit que inicial ha de tornar un error
+DELIMITER $$
+CREATE TRIGGER kmfinal_a_kminicial
+BEFORE INSERT ON trams
+    FOR EACH ROW
+    BEGIN
+        IF NEW.km_final < NEW.km_inicial THEN
+            SIGNAL SQLSTATE "45000"
+            SET MESSAGE_TEXT = "El km final és més petit que l'inicial";
+        END IF;
+    END;
+
+DELIMITER ;
+
 -- confluencia
 CREATE TABLE IF NOT EXISTS confluencies(
-    pk_id_confluencia int PRIMARY KEY,
-    km_tram1 int,
-    km_tram2 int,
+    pk_id_confluencia int AUTO_INCREMENT PRIMARY KEY,
+    km_tram1 DECIMAL(10,2),
+    km_tram2 DECIMAL(10,2),
     fk_id_tram1 int,
     fk_id_tram2 int,
     fk_id_provincia int
