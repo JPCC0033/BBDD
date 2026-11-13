@@ -1,4 +1,4 @@
-DROP DATABASE catchgene;
+DROP DATABASE IF EXISTS catchgene;
 
 CREATE DATABASE IF NOT EXISTS catchgene;
 -- CREATE SCHEMA IF NOT EXISTS catchgene;
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS biosamples(
     CONSTRAINT age_unsigned CHECK (age >= 0)
 );
     -- foreign keys biosamples
-    ALTER TABLE biosamples 
+ALTER TABLE biosamples 
     ADD CONSTRAINT bios_tis 
         FOREIGN KEY (fk_id_tissue) REFERENCES tissues(pk_id_tissue)
         ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -71,8 +71,8 @@ CREATE TABLE IF NOT EXISTS experiments(
             FOREIGN KEY (fk_id_platform) REFERENCES platforms(pk_id_platform)
             ON UPDATE CASCADE ON DELETE RESTRICT,
         ADD CONSTRAINT exp_bios 
-        FOREIGN KEY (fk_id_biosample) REFERENCES biosamples(pk_id_biosample)
-        ON UPDATE CASCADE ON DELETE RESTRICT;
+            FOREIGN KEY (fk_id_biosample) REFERENCES biosamples(pk_id_biosample)
+            ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
 
@@ -99,35 +99,35 @@ CREATE TABLE IF NOT EXISTS exp_tr(
 );
 
 -- foreign keys
-    ALTER TABLE exp_hm 
-        ADD CONSTRAINT exp_exphm 
-            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-            ON UPDATE CASCADE ON DELETE CASCADE,
-        ADD CONSTRAINT hm_exphm 
+ALTER TABLE exp_hm 
+    ADD CONSTRAINT exp_exphm 
+        FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    ADD CONSTRAINT hm_exphm 
         FOREIGN KEY (fk_id_hm) REFERENCES histone_catalog(pk_id_hm)
         ON UPDATE CASCADE ON DELETE RESTRICT;
+ALTER TABLE exp_tr 
+    ADD CONSTRAINT exp_exptr 
+        FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    ADD CONSTRAINT tr_exptr 
+        FOREIGN KEY (fk_id_tr) REFERENCES transcription_catalog(pk_id_tr)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
 
-    ALTER TABLE exp_tr 
-        ADD CONSTRAINT exp_exptr 
-            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-            ON UPDATE CASCADE ON DELETE CASCADE,
-        ADD CONSTRAINT tr_exptr 
-            FOREIGN KEY (fk_id_tr) REFERENCES transcription_catalog(pk_id_tr)
-            ON UPDATE CASCADE ON DELETE RESTRICT;
-    ALTER TABLE exp_tf 
-        ADD CONSTRAINT exp_exptf
-            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-            ON UPDATE CASCADE ON DELETE CASCADE,
-        ADD CONSTRAINT tf_exptf
-            FOREIGN KEY (fk_id_tf) REFERENCES tf_catalog(pk_id_tf)
-            ON UPDATE CASCADE ON DELETE RESTRICT;
-    ALTER TABLE exp_da 
-        ADD CONSTRAINT exp_expda
-            FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-            ON UPDATE CASCADE ON DELETE CASCADE,
-        ADD CONSTRAINT da_expda
-            FOREIGN KEY (fk_id_da) REFERENCES accessibility_catalog(pk_id_da)
-            ON UPDATE CASCADE ON DELETE RESTRICT;
+ALTER TABLE exp_tf 
+    ADD CONSTRAINT exp_exptf
+        FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    ADD CONSTRAINT tf_exptf
+        FOREIGN KEY (fk_id_tf) REFERENCES tf_catalog(pk_id_tf)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+ALTER TABLE exp_da 
+    ADD CONSTRAINT exp_expda
+        FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    ADD CONSTRAINT da_expda
+        FOREIGN KEY (fk_id_da) REFERENCES accessibility_catalog(pk_id_da)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
 
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS assemblies(
     fk_id_organism int
 );
     -- foreign keys
-    ALTER TABLE assemblies 
+ALTER TABLE assemblies 
     ADD CONSTRAINT ass_org 
         FOREIGN KEY (fk_id_organism) REFERENCES organisms(pk_id_organism)
         ON UPDATE CASCADE ON DELETE RESTRICT;
@@ -160,8 +160,8 @@ CREATE TABLE IF NOT EXISTS genes(
 
 );
     -- foreign keys
-    ALTER TABLE genes 
-        ADD CONSTRAINT GO_genes 
+ALTER TABLE genes 
+    ADD CONSTRAINT GO_genes 
         FOREIGN KEY (fk_id_GO) REFERENCES gene_ontologies(pk_id_GO)
         ON UPDATE CASCADE ON DELETE RESTRICT;
 
@@ -177,9 +177,12 @@ CREATE TABLE IF NOT EXISTS gene_ass(
 );
 -- foreign keys
 ALTER TABLE gene_ass 
-ADD CONSTRAINT GA_assembly 
-    FOREIGN KEY (pk_fk_id_ass) REFERENCES assemblies(pk_id_ass)
-    ON UPDATE CASCADE ON DELETE RESTRICT;
+    ADD CONSTRAINT GA_assembly 
+        FOREIGN KEY (pk_fk_id_ass) REFERENCES assemblies(pk_id_ass)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    ADD CONSTRAINT GA_gene 
+        FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
 
 CREATE TABLE IF NOT EXISTS expression(
     pk_fk_id_exp int NOT NULL,
@@ -198,21 +201,6 @@ ALTER TABLE expression
         FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
         ON UPDATE CASCADE ON DELETE RESTRICT;
 
-CREATE TABLE IF NOT EXISTS usuaris (
-    pk_id_usuari INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL, -- Per guardar la contrasenya encriptada
-    rol ENUM('administrador', 'cientific', 'estudiant') DEFAULT 'cientific',
-    data_registre TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS consultes (
-    pk_id_consulta INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    fk_id_usuari INT NOT NULL,
-    data_consulta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    text_cercat VARCHAR(255)
-);
 
 
 
@@ -241,92 +229,6 @@ CREATE TABLE IF NOT EXISTS consultes (
 
 
 
---establishing foreign keys
--- experiments
 
 
 
-
-
--- BIOSAMPLES i ASSEMBLIES
-ALTER TABLE biosamples 
-ADD CONSTRAINT bios_tis 
-FOREIGN KEY (fk_id_tissue) REFERENCES tissues(pk_id_tissue)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-ALTER TABLE biosamples 
-ADD CONSTRAINT bios_org 
-FOREIGN KEY (fk_id_organism) REFERENCES organisms(pk_id_organism)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-
-
-
-
-
-ALTER TABLE gene_ass 
-ADD CONSTRAINT GA_gene
-FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-
-ALTER TABLE expression 
-ADD CONSTRAINT expression_exp 
-FOREIGN KEY (pk_fk_id_exp) REFERENCES experiments(pk_id_exp)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-ALTER TABLE expression 
-ADD CONSTRAINT expression_gene
-FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-ALTER TABLE consultes 
-ADD CONSTRAINT user_consulta
-FOREIGN KEY (fk_id_usuari) REFERENCES usuaris(pk_id_usuari)
-ON UPDATE CASCADE ON DELETE CASCADE;
-
-
--- Triggers
-DELIMITER $$
-CREATE TRIGGER nova_mostra
-BEFORE INSERT ON biosamples
-FOR EACH ROW
-BEGIN
--- Verificar que la cantidad vendida sea mayor que cero
-IF NEW.age <= 0 THEN
-SIGNAL SQLSTATE '45000'
-SET MESSAGE_TEXT = "L'edat de la mostra és negativa i hauria de ser positiva";
-END IF
-DELIMITER;
-
-
-
-
-/* 10 consultas mínim
-
-1. Is LOXL2 accessible in hippocampus in young macaques?
-2. Obtain all the genes expressed in mouse liver.
-3. Which (or whichs) genes are expressed in Brain after adolescence in Macaques that are not expressed in human?
-4. How many genes are accessible in human kidneys that are not accessible in small intestine?
-5. In which tissue does GeneB have more expression for each organism? Is always the same tissue?
-6. Retrieve all available DNA accessibility experiments in Gorilla. Which tissue has the most?
-7. What are the coordinates of the highest expressed gene in human brain? 
-8. Which transcription experiments are done with any platform from the company Illumina?
-9. 
-10. Classify the genes of one assembly by their length, from the shorter to the largest using Window Function DENSE_RANK().
-*/
-
-SELECT g.name_gene, t.name_tissue, o.scientific_name, b.age, da.DNAA_type
-FROM DNA_accessibility da
-JOIN experiments e ON da.pk_fk_id_exp = e.pk_id_exp
-JOIN biosamples b ON e.fk_id_biosample = b.pk_id_biosample
-JOIN tissues t ON b.fk_id_tissue = t.pk_id_tissue
-JOIN organisms o ON b.fk_id_organism = o.pk_id_organism
-JOIN expression ex ON e.pk_id_exp = ex.pk_fk_id_exp
-JOIN genes g ON ex.pk_fk_id_gene = g.pk_id_gene
-WHERE g.name_gene = 'LOXL2' 
-  AND t.name_tissue = 'hippocampus' 
-  AND o.scientific_name LIKE '%Macaca%' 
-  AND b.age < 3.00;
-
-SELECT g.name_gene, t.name_tissue, o.scientific_name, b.age, da.DNAA_type
