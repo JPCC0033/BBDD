@@ -6,19 +6,19 @@ use catchgene;
 
 -- creació taules
 CREATE TABLE IF NOT EXISTS tissues(
-    pk_id_tissue int NOT NULL PRIMARY KEY,
+    pk_id_tissue int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name_tissue varchar(20) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS organisms(
-    pk_id_organism int NOT NULL PRIMARY KEY,
+    pk_id_organism int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     scientific_name varchar(50) UNIQUE NOT NULL,
     nom_cat varchar(50),
     taxid int UNIQUE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS biosamples(
-    pk_id_biosample int NOT NULL PRIMARY KEY,
+    pk_id_biosample int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     purchase_lot int NOT NULL,
     age decimal(10,2) NOT NULL,
     sex ENUM("mascle","femella"),
@@ -38,7 +38,7 @@ ALTER TABLE biosamples
 
 
 CREATE TABLE IF NOT EXISTS platforms(
-    pk_id_platform int NOT NULL PRIMARY KEY,
+    pk_id_platform int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name_platform varchar(20) NOT NULL
 );
 
@@ -59,11 +59,66 @@ CREATE TABLE IF NOT EXISTS transcription_catalog(
     name_tr varchar(20) NOT NULL
 );
 
+
+-- bloc users
+CREATE TABLE IF NOT EXISTS laboratories (
+    pk_id_lab int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    institucio varchar(50) NOT NULL UNIQUE,
+    url_lab varchar(100)
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    pk_id_user int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    username varchar(50) NOT NULL UNIQUE,
+    email varchar(100) NOT NULL UNIQUE,
+    fk_id_lab int
+);
+-- foreign keys
+ALTER TABLE users
+    ADD CONSTRAINT user_lab
+        FOREIGN KEY (fk_id_lab) REFERENCES laboratories(pk_id_lab)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
+-- tables ISA
+CREATE TABLE IF NOT EXISTS users_creators (
+    pk_fk_id_user int NOT NULL PRIMARY KEY,
+    orcid varchar(19) UNIQUE
+);
+CREATE TABLE IF NOT EXISTS users_readers (
+    pk_fk_id_user int NOT NULL PRIMARY KEY,
+    max_QxD int DEFAULT 100
+);
+-- foreign keys
+ALTER TABLE users_creators
+    ADD CONSTRAINT fk_user_creator
+        FOREIGN KEY (pk_fk_id_user) REFERENCES users(pk_id_user)
+        ON UPDATE CASCADE ON DELETE CASCADE;
+ALTER TABLE users_readers
+    ADD CONSTRAINT fk_user_readers
+        FOREIGN KEY (pk_fk_id_user) REFERENCES users(pk_id_user)
+        ON UPDATE CASCADE ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS queries (
+    fk_fk_id_user int NOT NULL,
+    query_number int NOT NULL,
+    target_topic ENUM('genes', 'tissues', 'organisms', 'experiments', 'general') DEFAULT 'general',
+    query_text TEXT NOT NULL,
+    date_query TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_user_queries PRIMARY KEY (fk_fk_id_user, query_number)
+);
+-- foreign keys
+ALTER TABLE queries
+    ADD CONSTRAINT uq_us_read
+        FOREIGN KEY (fk_fk_id_user) REFERENCES users_readers(pk_fk_id_user)
+        ON UPDATE CASCADE ON DELETE CASCADE;
+
+-- bloc experiments
 CREATE TABLE IF NOT EXISTS experiments(
-    pk_id_exp int NOT NULL PRIMARY KEY,
+    pk_id_exp int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     date_sequencing DATE NOT NULL,
     fk_id_biosample int,
-    fk_id_platform int
+    fk_id_platform int,
+    fk_fk_id_user int
 );
 -- foreign keys
     ALTER TABLE experiments 
@@ -72,8 +127,10 @@ CREATE TABLE IF NOT EXISTS experiments(
             ON UPDATE CASCADE ON DELETE RESTRICT,
         ADD CONSTRAINT exp_bios 
             FOREIGN KEY (fk_id_biosample) REFERENCES biosamples(pk_id_biosample)
+            ON UPDATE CASCADE ON DELETE RESTRICT,
+        ADD CONSTRAINT exp_us_creat 
+            FOREIGN KEY (fk_fk_id_user) REFERENCES users_creators(pk_fk_id_user)
             ON UPDATE CASCADE ON DELETE RESTRICT;
-
 
 
 -- tables ISA
@@ -129,10 +186,9 @@ ALTER TABLE exp_da
         FOREIGN KEY (fk_id_da) REFERENCES accessibility_catalog(pk_id_da)
         ON UPDATE CASCADE ON DELETE RESTRICT;
 
-
-
+-- bloc genes
 CREATE TABLE IF NOT EXISTS assemblies(
-    pk_id_ass int NOT NULL PRIMARY KEY,
+    pk_id_ass int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     url_link varchar(255) NOT NULL UNIQUE,
     busco_score decimal(10,2),
     name_ass varchar(100),
@@ -147,13 +203,13 @@ ALTER TABLE assemblies
         ON UPDATE CASCADE ON DELETE RESTRICT;
 
 CREATE TABLE IF NOT EXISTS gene_ontologies(
-    pk_id_GO int NOT NULL PRIMARY KEY,
+    pk_id_GO int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     desc_GO varchar(255),
-    GO_number int NOT NULL UNIQUE
+    GO_number varchar(15) NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS genes(
-    pk_id_gene int NOT NULL PRIMARY KEY,
+    pk_id_gene int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name_gene varchar(20) UNIQUE,
     description_gene varchar(255),    
     fk_id_GO int
@@ -187,7 +243,7 @@ ALTER TABLE gene_ass
 CREATE TABLE IF NOT EXISTS expression(
     pk_fk_id_exp int NOT NULL,
     pk_fk_id_gene int NOT NULL,
-    expression_value int,
+    expression_value DECIMAL(10,2),
     gene_expressed ENUM("YES","NO") GENERATED ALWAYS AS (
         CASE WHEN expression_value >= 5 THEN 'YES' ELSE 'NO' END
     ) STORED,
@@ -200,13 +256,6 @@ ALTER TABLE expression
     ADD CONSTRAINT gen_expression 
         FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
         ON UPDATE CASCADE ON DELETE RESTRICT;
-
-
-
-
-
-
-
 
 
 
