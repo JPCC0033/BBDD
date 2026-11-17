@@ -155,3 +155,19 @@ SELECT
       AND assemblies.fk_id_organism = organisms.pk_id_organism
     ORDER BY expression.expression_value DESC
     LIMIT 1;
+
+
+-- quins gens tenen una llargada més gran que la mitjana
+WITH mitjana_longitud AS (
+    SELECT AVG(gene_length) AS avg_len
+        FROM gene_ass
+)
+SELECT 
+    genes.pk_id_gene,
+    genes.name_gene,
+    ROUND(AVG(gene_ass.gene_length), 2) AS gene_length
+    FROM genes
+    JOIN gene_ass ON genes.pk_id_gene = gene_ass.pk_fk_id_gene
+    CROSS JOIN mitjana_longitud m
+    GROUP BY genes.pk_id_gene, genes.name_gene, m.avg_len
+    HAVING AVG(gene_ass.gene_length) > m.avg_len;

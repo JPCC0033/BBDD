@@ -98,6 +98,21 @@ ALTER TABLE users_readers
         FOREIGN KEY (pk_fk_id_user) REFERENCES users(pk_id_user)
         ON UPDATE CASCADE ON DELETE CASCADE;
 
+
+CREATE TABLE IF NOT EXISTS queries (
+    fk_fk_id_user int NOT NULL,
+    query_number int NOT NULL,
+    target_topic ENUM('genes', 'tissues', 'organisms', 'experiments', 'general') DEFAULT 'general',
+    query_text TEXT NOT NULL,
+    date_query TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_user_queries PRIMARY KEY (fk_fk_id_user, query_number)
+);
+-- foreign keys
+ALTER TABLE queries
+    ADD CONSTRAINT uq_us_read
+        FOREIGN KEY (fk_fk_id_user) REFERENCES users_readers(pk_fk_id_user)
+        ON UPDATE CASCADE ON DELETE CASCADE;
+
 -- trigger massa queries
 DELIMITER $$
 
@@ -124,20 +139,6 @@ BEGIN
 END
 
 DELIMITER ;
-
-CREATE TABLE IF NOT EXISTS queries (
-    fk_fk_id_user int NOT NULL,
-    query_number int NOT NULL,
-    target_topic ENUM('genes', 'tissues', 'organisms', 'experiments', 'general') DEFAULT 'general',
-    query_text TEXT NOT NULL,
-    date_query TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pk_user_queries PRIMARY KEY (fk_fk_id_user, query_number)
-);
--- foreign keys
-ALTER TABLE queries
-    ADD CONSTRAINT uq_us_read
-        FOREIGN KEY (fk_fk_id_user) REFERENCES users_readers(pk_fk_id_user)
-        ON UPDATE CASCADE ON DELETE CASCADE;
 
 -- bloc experiments
 CREATE TABLE IF NOT EXISTS experiments(
