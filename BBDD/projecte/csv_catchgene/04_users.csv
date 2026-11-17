@@ -1,0 +1,2 @@
+pk_id_user,username,email,fk_id_lab
+1,curator_rnaseq,curator@catchgene.org,1

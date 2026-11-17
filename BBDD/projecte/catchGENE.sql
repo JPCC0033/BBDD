@@ -98,6 +98,33 @@ ALTER TABLE users_readers
         FOREIGN KEY (pk_fk_id_user) REFERENCES users(pk_id_user)
         ON UPDATE CASCADE ON DELETE CASCADE;
 
+-- trigger massa queries
+DELIMITER $$
+
+CREATE TRIGGER check_max_queries_per_day
+BEFORE INSERT ON queries
+FOR EACH ROW
+BEGIN
+    DECLARE consultes_avui INT;
+    DECLARE limit_usuari INT;
+
+    SELECT COUNT(*) INTO consultes_avui
+    FROM queries
+    WHERE fk_fk_id_user = NEW.fk_fk_id_user
+      AND DATE(date_query) = CURDATE();
+
+    SELECT max_QxD INTO limit_usuari
+    FROM users_readers
+    WHERE pk_fk_id_user = NEW.fk_fk_id_user;
+
+    IF consultes_avui >= limit_usuari THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Has superat el límit màxim de consultes diàries (max_QxD).';
+    END IF;
+END
+
+DELIMITER ;
+
 CREATE TABLE IF NOT EXISTS queries (
     fk_fk_id_user int NOT NULL,
     query_number int NOT NULL,
@@ -132,6 +159,20 @@ CREATE TABLE IF NOT EXISTS experiments(
             FOREIGN KEY (fk_fk_id_user) REFERENCES users_creators(pk_fk_id_user)
             ON UPDATE CASCADE ON DELETE RESTRICT;
 
+-- trigger dates futures per error
+DELIMITER $$
+
+CREATE TRIGGER check_sequencing_date
+BEFORE INSERT ON experiments
+FOR EACH ROW
+BEGIN
+    IF NEW.date_sequencing > CURDATE() THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: La data de seqüenciació no pot ser futura.';
+    END IF;
+END
+
+DELIMITER ;
 
 -- tables ISA
 CREATE TABLE IF NOT EXISTS exp_hm(
