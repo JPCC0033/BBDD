@@ -7,20 +7,20 @@ CREATE DATABASE IF NOT EXISTS nomina;
 USE nomina;
 
 -- tabla departamento
-CREATE TABLE departamento(
+CREATE TABLE departamentos(
   pk_departamento int AUTO_INCREMENT,
   departamento varchar(50) unique,
   primary key (pk_departamento)
 );
 
 -- tabla cargo
-CREATE TABLE cargo(
+CREATE TABLE cargos(
   pk_cargo int AUTO_INCREMENT primary key,
   cargo varchar(50) unique
 );
 
  -- tabla empleado
- CREATE TABLE empleado (
+ CREATE TABLE empleados (
   pk_empleado int AUTO_INCREMENT primary key,
   apellido varchar(25) not null,
   nombre varchar(25) not null,
@@ -37,38 +37,39 @@ CREATE TABLE cargo(
 
 -- foreign keys
 
-ALTER TABLE empleado 
+ALTER TABLE empleados 
     ADD CONSTRAINT cargos_empleados
-    FOREIGN KEY (fk_cargo) REFERENCES cargo(pk_cargo)
-    ON UPDATE CASCADE -- si un padre se cambia se cambian sus hijos en la tabla empleado
-    ON DELETE RESTRICT; -- si un padre se intenta borrar y tiene hijos, no se permite la operación
-
-ALTER TABLE empleado 
-    ADD CONSTRAINT departamentos_empleados
-    FOREIGN KEY (fk_departamento) REFERENCES departamento(pk_departamento)
+    FOREIGN KEY (fk_cargo) REFERENCES cargos(pk_cargo)
     ON UPDATE CASCADE ON DELETE RESTRICT;
 
-ALTER TABLE empleado ADD COLUMN num_sso varchar(15);
+ALTER TABLE empleados 
+    ADD CONSTRAINT departamentos_empleados
+    FOREIGN KEY (fk_departamento) REFERENCES departamentos(pk_departamento)
+    ON UPDATE CASCADE ON DELETE RESTRICT;
 
-ALTER TABLE empleado
+ALTER TABLE empleados ADD COLUMN num_sso varchar(15);
+
+ALTER TABLE empleados
     ADD CONSTRAINT sso_empleado UNIQUE(num_sso);
 
 -- 5. Ahora que ya has hecho un trigger, inventa dos triggers para las tablas de la Base de Datos NOMINA.
 -- trigger per posar els cognoms en majuscula
+/*
 DELIMITER $$
 CREATE TRIGGER majuscules_cognoms
-BEFORE INSERT ON empleado
+BEFORE INSERT ON empleados
     FOR EACH ROW
     BEGIN
         SET NEW.apellido = UPPER(NEW.apellido);
     END;
 
 DELIMITER ;
+*/
 
 -- trigger per donar 500 euros més per fill
 DELIMITER $$
 CREATE TRIGGER plus_fills
-BEFORE UPDATE ON empleado
+BEFORE UPDATE ON empleados
     FOR EACH ROW
     BEGIN
         IF NEW.hijos > OLD.hijos THEN
@@ -82,30 +83,30 @@ DELIMITER ;
 USE nomina;
 
 -- insert departaments
-INSERT INTO departamento (pk_departamento, departamento) VALUES (1, 'Administración');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (2, 'Compras');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (3, 'Contabilidad');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (4, 'Informática');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (5, 'Recursos Humanos');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (6, 'Ventas');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (7, 'Marketing');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (8, 'Finanzas');
-INSERT INTO departamento (pk_departamento, departamento) VALUES (9, 'Recepción');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (1, 'Administración');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (2, 'Compras');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (3, 'Contabilidad');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (4, 'Informática');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (5, 'Recursos Humanos');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (6, 'Ventas');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (7, 'Marketing');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (8, 'Finanzas');
+INSERT INTO departamentos (pk_departamento, departamento) VALUES (9, 'Recepción');
 
 -- insert cargo
- INSERT INTO cargo (pk_cargo, cargo) VALUES (1, 'Analista');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (2, 'Asistente');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (3, 'Ejecutivo');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (4, 'Gerente');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (5, 'Oficinista');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (6, 'Programador');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (7, 'Secretaria');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (8, 'Vice Presidente');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (9, 'Técnico');
- INSERT INTO cargo (pk_cargo, cargo) VALUES (10, 'Especialista');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (1, 'Analista');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (2, 'Asistente');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (3, 'Ejecutivo');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (4, 'Gerente');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (5, 'Oficinista');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (6, 'Programador');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (7, 'Secretaria');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (8, 'Vice Presidente');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (9, 'Técnico');
+ INSERT INTO cargos (pk_cargo, cargo) VALUES (10, 'Especialista');
 
 -- insert empleados
-INSERT INTO empleado ( pk_empleado,
+INSERT INTO empleados ( pk_empleado,
     apellido, nombre, sexo, fecha_nacimiento, estado_civil, 
     hijos, fk_cargo, fk_departamento, fecha_contrato, sueldo
 ) VALUES 
@@ -171,13 +172,14 @@ INSERT INTO empleado ( pk_empleado,
   (60, 'Bonalde', 'Roberta', 'Mujer', '1997-2-19', 'Soltero', 0, 7, 2, '2019-4-5', 15000);
 
 -- comprovació cognoms majuscula
-SELECT pk_empleado, apellido, nombre, hijos, sueldo, retencion_sso FROM empleado;
+SELECT pk_empleado, apellido, nombre, hijos, sueldo, retencion_sso FROM empleados;
 
+/*
 -- update numero de fills
-UPDATE empleado 
+UPDATE empleados 
     SET hijos = 1 
     WHERE pk_empleado = 1;
 
 -- comprovació nou sou
-SELECT pk_empleado, apellido, nombre, hijos, sueldo, retencion_sso FROM empleado WHERE pk_empleado = 1;
-
+SELECT pk_empleado, apellido, nombre, hijos, sueldo, retencion_sso FROM empleados WHERE pk_empleado = 1;
+*/
