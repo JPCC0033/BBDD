@@ -274,5 +274,3 @@ SELECT pk_pedido, fecha_pedido, fecha_esperada, fecha_entrega, estado
     FROM pedido
     WHERE fecha_esperada < fecha_pedido
        OR (fecha_entrega IS NOT NULL AND fecha_entrega < fecha_pedido);
-
-
