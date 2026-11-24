@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS organisms(
 
 CREATE TABLE IF NOT EXISTS biosamples(
     pk_id_biosample int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    purchase_lot int NOT NULL,
-    age decimal(10,2) NOT NULL,
+    purchase_lot int,
+    age decimal(10,2),
     sex varchar(20),
     name_bios varchar(20) NOT NULL,
     fk_id_tissue int,
