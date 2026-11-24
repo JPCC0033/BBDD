@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS biosamples(
     pk_id_biosample int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     purchase_lot int NOT NULL,
     age decimal(10,2) NOT NULL,
-    sex ENUM("mascle","femella"),
+    sex varchar(20),
     name_bios varchar(20) NOT NULL,
     fk_id_tissue int,
     fk_id_organism int,
@@ -246,25 +246,33 @@ ALTER TABLE assemblies
 
 CREATE TABLE IF NOT EXISTS gene_ontologies(
     pk_id_GO int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    desc_GO varchar(255),
+    desc_GO TEXT,
     GO_number varchar(15) NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS genes(
     pk_id_gene int NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name_gene varchar(20) UNIQUE,
-    description_gene varchar(255),    
-    fk_id_GO int
-
+    name_gene varchar(50) UNIQUE,
+    description_gene TEXT
 );
-    -- foreign keys
-ALTER TABLE genes 
-    ADD CONSTRAINT GO_genes 
-        FOREIGN KEY (fk_id_GO) REFERENCES gene_ontologies(pk_id_GO)
-        ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
 -- taules intermitges n:m
+CREATE TABLE IF NOT EXISTS gene_go(
+    pk_fk_id_GO int NOT NULL,
+    pk_fk_id_gene int NOT NULL,
+    CONSTRAINT pk_id_gene_go PRIMARY KEY (pk_fk_id_GO, pk_fk_id_gene)
+);
+
+-- foreign keys
+ALTER TABLE gene_go 
+    ADD CONSTRAINT GGO_go 
+        FOREIGN KEY (pk_fk_id_GO) REFERENCES gene_ontologies(pk_id_GO)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    ADD CONSTRAINT GGO_gene 
+        FOREIGN KEY (pk_fk_id_gene) REFERENCES genes(pk_id_gene)
+        ON UPDATE CASCADE ON DELETE RESTRICT;
+
 CREATE TABLE IF NOT EXISTS gene_ass(
     pk_fk_id_ass int NOT NULL,
     pk_fk_id_gene int NOT NULL,
