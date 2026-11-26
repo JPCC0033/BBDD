@@ -39,14 +39,42 @@ SELECT COUNT(pk_departamento) as "Número total de de departaments" FROM departa
 SELECT CONCAT(ROUND(AVG(sueldo),2),"€") as "Mitjana del sou dels treballadors" FROM empleados;
 
 -- 4. Indica quién es el empleado más joven.
-SELECT CONCAT(pk_empleado," - ",nombre," ",apellido) as "Treballador més jove" 
-    FROM empleados
-    WHERE fecha_nacimiento = (SELECT MAX(fecha_nacimiento) FROM empleados);
+    -- amb una subtaula
+    SELECT CONCAT(pk_empleado," - ",nombre," ",apellido) as "Treballador més jove" 
+        FROM empleados
+        WHERE fecha_nacimiento = (SELECT MAX(fecha_nacimiento) FROM empleados);
+
+    -- Unint dues taules
+    SELECT CONCAT(e1.pk_empleado, ' - ', e1.nombre, ' ', e1.apellido) AS "Treballador més jove"
+        FROM empleados e1
+        JOIN empleados e2
+        GROUP BY e1.pk_empleado, e1.nombre, e1.apellido, e1.fecha_nacimiento
+        HAVING e1.fecha_nacimiento = MAX(e2.fecha_nacimiento);
+
+    -- creant una variable
+    SELECT MAX(fecha_nacimiento) INTO @jove FROM empleados;
+    SELECT CONCAT(pk_empleado," - ",nombre," ",apellido) as "Treballador més jove" 
+        FROM empleados
+        WHERE fecha_nacimiento = @jove;
 
 -- 5. Indica quién es el empleado menos joven.
-SELECT CONCAT(pk_empleado," - ",nombre," ",apellido) as "Treballador menys jove" 
-    FROM empleados
-    WHERE fecha_nacimiento = (SELECT MIN(fecha_nacimiento) FROM empleados);
+    -- amb una subconsulta
+    SELECT CONCAT(pk_empleado," - ",nombre," ",apellido) as "Treballador menys jove" 
+        FROM empleados
+        WHERE fecha_nacimiento = (SELECT MIN(fecha_nacimiento) FROM empleados);
+
+    -- Unint dues taules
+    SELECT CONCAT(e1.pk_empleado, ' - ', e1.nombre, ' ', e1.apellido) AS "Treballador més jove"
+        FROM empleados e1
+        JOIN empleados e2
+        GROUP BY e1.pk_empleado, e1.nombre, e1.apellido, e1.fecha_nacimiento
+        HAVING e1.fecha_nacimiento = MIN(e2.fecha_nacimiento);
+
+    -- creant una variable
+    SELECT MIN(fecha_nacimiento) INTO @vell FROM empleados;
+    SELECT CONCAT(pk_empleado," - ",nombre," ",apellido) as "Treballador més jove" 
+        FROM empleados
+        WHERE fecha_nacimiento = @vell;
 
 -- 6. Calcula el número total de empleados por estado civil.
 SELECT estado_civil as "Estat civil",
@@ -84,6 +112,18 @@ SELECT nombre as "Nom del producte",
     precio_venta as "preu de venta"
     FROM producto
     WHERE precio_venta = (SELECT MAX(precio_venta) FROM producto);
+
+SELECT p1.nombre as "nom del producte"
+    FROM producto p1
+    JOIN producto p2
+    GROUP BY p1.pk_producto, p1.nombre, p1.precio_venta
+    HAVING p1.precio_venta = MAX(p2.precio_venta);
+
+SELECT MAX(precio_venta) INTO @caro FROM producto;
+SELECT nombre as "Nom del producte",
+    precio_venta as "preu de venta"
+    FROM producto
+    WHERE precio_venta = @caro; 
 
 -- 9. Calcula la suma de los salarios de los empleados por departamento.
 use nomina;
