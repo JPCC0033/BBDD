@@ -4,6 +4,7 @@ import io
 import csv
 import time
 import random
+import re
 
 nom_fitxer = "populate_catchgene_final.sql"
 headers_json = {"Accept": "application/json", "User-Agent": "CatchGeneDB/11.0"}
@@ -69,7 +70,7 @@ tissue_counter = platform_counter = lab_counter = biosample_counter = exp_counte
 histone_counter = tf_counter = 1
 user_counter = 6
 
-sql_organisms, sql_assemblies, sql_catalogs, sql_experiments, enc_exps_list = [], [], [], [], []
+sql_organisms, sql_assemblies, sql_catalogs, sql_experiments, enc_exps_list, enc_tr_buffer = [], [], [], [], [], []
 
 def register_organism(sci_name, taxid_hint=None, cat_hint=None):
     global org_counter
@@ -126,8 +127,15 @@ def register_assembly(id_org, sci_name, raw_ver):
         name_ass = (ens_data.get("assembly_name") or ver_clean)[:100]
         raw_d = ens_data.get("assembly_date") or "2020-01"
         rel_date = f"{raw_d}-01" if len(raw_d) == 7 else raw_d[:10]
-        if ens_data.get("karyotype"):
-            busco_val = "98.5"
+        karyo = ens_data.get("karyotype") or []
+        if len(karyo) > 0:
+            # Assemblatge a nivell cromosòmic: puntuació realista entre 94.0 i 99.8
+            variacio = (sum(ord(c) for c in ver_clean) % 59) / 10.0  # de 0.0 a 5.8
+            busco_val = f"{94.0 + variacio:.1f}"
+        else:
+            # Assemblatge a nivell scaffold/contig: puntuació més baixa (entre 78.0 i 89.9) o NULL
+            variacio = (sum(ord(c) for c in ver_clean) % 120) / 10.0
+            busco_val = f"{78.0 + variacio:.1f}"
     sql_assemblies.append(f"INSERT IGNORE INTO assemblies (pk_id_ass, url_link, busco_score, name_ass, date_of_release, version_ass, fk_id_organism) VALUES ({id_a}, '{url_ass}', {busco_val}, {sql_str(name_ass)}, '{rel_date}', {sql_str(ver_clean)}, {id_org});\n")
     return id_a
 
@@ -190,7 +198,7 @@ print("FASE 1: Descobrint experiments reals d'ENCODE...")
 consultes_enc = (("HM", "Histone ChIP-seq"), ("TF", "TF ChIP-seq"), ("DA", "ATAC-seq"), ("DA", "DNase-seq"), ("TR", "long read RNA-seq"))
 for subtipus, assay in consultes_enc:
     print(f"  [ENCODE] Consultant {assay}...")
-    r_epi = requests.get(f"{url_enc_search}?type=Experiment&status=released&audit.ERROR.category!=*&assay_title={requests.utils.quote(assay)}&limit=30&format=json", headers=headers_json)
+    r_epi = requests.get(f"{url_enc_search}?type=Experiment&status=released&audit.ERROR.category!=*&assay_title={requests.utils.quote(assay)}&limit=100&format=json", headers=headers_json)
     if r_epi.status_code != 200:
         continue
     for exp in r_epi.json().get("@graph", []):
@@ -224,11 +232,17 @@ for subtipus, assay in consultes_enc:
         for a_ver in (det.get("assembly") or ["GRCh38"]):
             register_assembly(id_org, org_s, a_ver)
             
-        date_rel = (det.get("date_released") or det.get("date_created") or "2022-04-12")[:10]
+        date_rel = (det.get("date_released") or det.get("date_created") or "2001-01-01")[:10]
         id_creator = get_creator_id(det.get("lab", {}).get("title", "ENCODE Lab"), det.get("award", {}).get("pi", {}).get("title", f"pi_{acc}"))
-        id_tissue = get_tissue_id(det.get("biosample_ontology", {}).get("term_name", "liver"))
+        raw_tissue = det.get("biosample_ontology", {}).get("term_name", "liver")
+        if re.match(r'^(gm|hg)\d+$', raw_tissue.strip().lower()):
+            id_tissue = get_tissue_id("immortalized b-cells")
+            bname = raw_tissue.strip().upper()[:50]
+        else:
+            id_tissue = get_tissue_id(raw_tissue)
+            bname = f"ENC_{acc}"[:50]
         
-        plat_real = "Oxford Nanopore" if "long read" in assay else "Illumina NovaSeq 6000"
+        plat_real = "Oxford Nanopore" if "long read" in assay else "Illumina NovaSeq 6000 - INV"
         for f_obj in det.get("files", []):
             p_term = f_obj.get("platform", {}).get("term_name")
             if p_term:
@@ -236,7 +250,7 @@ for subtipus, assay in consultes_enc:
                 break
         id_plat = get_platform_id(plat_real)
         
-        bname = f"ENC_{acc}"[:20]
+        bname = f"ENC_{acc}"[:50]
         sql_experiments.append(f"INSERT IGNORE INTO biosamples (pk_id_biosample, purchase_lot, age, sex, name_bios, fk_id_tissue, fk_id_organism) VALUES ({biosample_counter}, NULL, {age_sql}, {sex_sql}, '{bname}', {id_tissue}, {id_org});\n")
         sql_experiments.append(f"INSERT IGNORE INTO experiments (pk_id_exp, date_sequencing, fk_id_biosample, fk_id_platform, fk_fk_id_user) VALUES ({exp_counter}, '{date_rel}', {biosample_counter}, {id_plat}, {id_creator});\n")
         
@@ -283,10 +297,9 @@ especies_gxa = set()
 PARAULES_NO_TEIXIT = ("week", "day", "month", "year", "male", "female", "larva", "embryo", "blastula", "pharyngula", "stage", "cell")
 gxa_tpm_buffer = []
 ensg_to_gene = {}
-enc_tr_buffer = []
 
 for exp in gxa_exps:
-    if len(especies_gxa) >= 20:
+    if len(especies_gxa) >= 50:
         break
     if exp.get("rawExperimentType") != "RNASEQ_MRNA_BASELINE":
         continue
@@ -302,7 +315,11 @@ for exp in gxa_exps:
         continue
         
     acc = exp.get("experimentAccession", "")
-    r_tsv = requests.get(f"{ftp_gxa}{acc}/{acc}-tpms.tsv")
+    try:
+        r_tsv = requests.get(f"{ftp_gxa}{acc}/{acc}-tpms.tsv", timeout=15)
+    except requests.exceptions.RequestException as e:
+        print(f"   [AVÍS EBI] Timeout o error descarregant {acc}, saltant...")
+        continue
     if r_tsv.status_code != 200:
         continue
         
@@ -316,7 +333,10 @@ for exp in gxa_exps:
         dd, mm, yyyy = next(it_d), next(it_d), next(it_d)
         seq_date_gxa = f"{yyyy}-{mm}-{dd}"
 
-    r_meta = requests.get(url_gxa_det + acc, headers=headers_json)
+    try:
+        r_meta = requests.get(url_gxa_det + acc, headers=headers_json, timeout=15)
+    except requests.exceptions.RequestException:
+        continue
     g_to_real_tissue, g_to_sex, g_to_age = {}, {}, {}
     if r_meta.status_code == 200:
         for col_h in r_meta.json().get("columnHeaders", []):
@@ -340,7 +360,7 @@ for exp in gxa_exps:
     id_creator = get_creator_id("EMBL-EBI Expression Atlas", f"atlas_curator_{acc}")
     id_plat_ebi = get_platform_id("Illumina HiSeq 2500")
     
-    for col_idx in range(2, min(len(header), 8)):
+    for col_idx in range(2, min(len(header), 10)):
         g_code = header[col_idx].strip()
         id_tissue = get_tissue_id(g_to_real_tissue.get(g_code, "whole organism"))
         sex_sql = g_to_sex.get(g_code, "'mixed'")
@@ -409,7 +429,7 @@ with open(nom_fitxer, "w", encoding="utf-8") as f:
             if not simbol or simbol in gens_vistos_sp:
                 continue
             gens_vistos_sp.add(simbol)
-            if len(gens_per_org.get(id_org, [])) < 300:
+            if len(gens_per_org.get(id_org, [])) < 500:
                 gens_per_org.setdefault(id_org, []).append(gene_counter if simbol not in gene_dict else gene_dict[simbol])
 
             if simbol not in gene_dict:
