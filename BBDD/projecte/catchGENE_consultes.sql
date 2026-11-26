@@ -55,7 +55,9 @@ CREATE OR REPLACE VIEW registros_tablas AS
     UNION ALL
     SELECT 'genes', COUNT(*) FROM genes
     UNION ALL
-    SELECT 'gene_ass', COUNT(*) FROM gene_ass
+    SELECT 'gene_ass', COUNT(*) FROM gene_ass    
+    UNION ALL
+    SELECT 'gene_go', COUNT(*) FROM gene_go
     UNION ALL
     SELECT 'expression', COUNT(*) FROM expression;
 
@@ -74,7 +76,9 @@ CREATE OR REPLACE VIEW estructura_bbdd AS
         FROM information_schema.ROUTINES
         WHERE ROUTINE_SCHEMA = 'catchgene';
 
-
+SELECT * FROM info_tablas;
+SELECT * FROM registros_tablas;
+SELECT * FROM estructura_bbdd;
 -- consultes
 -- quin 5 teixits tenen més gens en els nostres experiments
 SELECT 
@@ -100,7 +104,7 @@ SELECT DISTINCT CONCAT(o.scientific_name, ' (', o.taxid, ')') AS especie_taxid,
 
 
 -- Quins son tots els teixits de la database
-SELECT name_tissue FROM tissues;
+SELECT * FROM tissues;
 
 -- Hi ha el gen BRCA1 a la database?
 SELECT * FROM genes WHERE name_gene = "BRCA1";
@@ -108,8 +112,8 @@ SELECT * FROM genes WHERE name_gene = "BRCA1";
 -- Quins son els cientifics names i taxids dels organismes de la database
 SELECT scientific_name, taxid FROM organisms;
 
--- Quants experiments es van sequenciar el primer dia de gener del 2025?
-SELECT COUNT(*) FROM experiments WHERE date_sequencing = "2025-01-01";
+-- Quants experiments es van sequenciar el primer dia de gener del 2001?
+SELECT COUNT(*) FROM experiments WHERE date_sequencing = "2001-01-01";
 
 -- Llista tots els teixits de la BBDD i el nombre d'experiments associats (fins i tot si en tenen 0)
 SELECT t.name_tissue AS teixit,
@@ -118,7 +122,7 @@ SELECT t.name_tissue AS teixit,
     LEFT JOIN biosamples b ON t.pk_id_tissue = b.fk_id_tissue
     LEFT JOIN experiments e ON b.pk_id_biosample = e.fk_id_biosample
     GROUP BY t.pk_id_tissue, t.name_tissue
-    ORDER BY total_experiments ASC;
+    ORDER BY total_experiments DESC;
 
 -- Quants gens per teixit tinc en tots els experiments de la database
 SELECT tissues.name_tissue, 
@@ -127,10 +131,11 @@ SELECT tissues.name_tissue,
         JOIN biosamples ON tissues.pk_id_tissue = biosamples.fk_id_tissue 
         JOIN experiments ON biosamples.pk_id_biosample = experiments.fk_id_biosample 
         JOIN expression ON experiments.pk_id_exp = expression.pk_fk_id_exp 
-    GROUP BY tissues.name_tissue;
+    GROUP BY tissues.name_tissue
+    ORDER BY number_of_genes DESC;
 
 -- Quins gens es descriuen com a kinase a la database?
-SELECT name_gene FROM genes WHERE description_gene LIKE "%kinase%";
+SELECT name_gene FROM genes; WHERE description_gene LIKE "%kinase%";
 
 -- All the genes expressed in liver
 SELECT DISTINCT 
@@ -143,8 +148,8 @@ SELECT DISTINCT
     WHERE LOWER(tissues.name_tissue) = 'liver'
       AND expression.gene_expressed = 'YES';
  
--- How many genes are expressed in the brain of gorillas after adolescence and not in human
-SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS total_gens_exclusius_gorila
+-- How many genes are expressed in the brain of macacs after adolescence and not in human
+SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS total_gens_exclusius_macac
     FROM expression
         JOIN experiments ON expression.pk_fk_id_exp = experiments.pk_id_exp
         JOIN biosamples ON experiments.fk_id_biosample = biosamples.pk_id_biosample
@@ -153,7 +158,7 @@ SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS total_gens_exclusius_gorila
     WHERE LOWER(tissues.name_tissue) = 'brain'
   AND expression.gene_expressed = 'YES'
   AND biosamples.age > 10
-  AND LOWER(organisms.scientific_name) LIKE 'gorilla%'
+  AND LOWER(organisms.scientific_name) LIKE 'macac%'
   AND expression.pk_fk_id_gene NOT IN (
       SELECT DISTINCT expression.pk_fk_id_gene
           FROM expression
@@ -164,7 +169,7 @@ SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS total_gens_exclusius_gorila
           WHERE LOWER(tissues.name_tissue) = 'brain'
             AND expression.gene_expressed = 'YES'
             AND LOWER(organisms.scientific_name) = 'homo sapiens'
- );
+ ); -- NO FUNCIONA
 
  -- How many genes are accessible in human liver that are not accessible in small intestine
 SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS accessible_genes_only_in_human_liver
@@ -186,7 +191,7 @@ SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS accessible_genes_only_in_huma
           JOIN organisms ON biosamples.fk_id_organism = organisms.pk_id_organism
           WHERE LOWER(tissues.name_tissue) = 'small intestine'
             AND LOWER(organisms.scientific_name) = 'homo sapiens'
-);
+); -- NO FUNCIONA
 
 -- In which tisses does LOXL2 have maxim expression for each species? Is it always the same tissue?
 WITH max_expression_per_species AS (
@@ -212,23 +217,23 @@ SELECT
     scientific_name,
     name_tissue AS tissue_with_max_expression,
     max_expression
-FROM max_expression_per_species
-WHERE ranking = 1
-ORDER BY scientific_name;
+    FROM max_expression_per_species
+    WHERE ranking = 1
+    ORDER BY scientific_name;
 
 -- From all available DNA accessibility experiments in human, which tissue has the most?
 SELECT 
     tissues.name_tissue,
     COUNT(experiments.pk_id_exp) AS total_accessibility_experiments
-FROM experiments
-    JOIN exp_da ON experiments.pk_id_exp = exp_da.pk_fk_id_exp
-    JOIN biosamples ON experiments.fk_id_biosample = biosamples.pk_id_biosample
-    JOIN tissues ON biosamples.fk_id_tissue = tissues.pk_id_tissue
-    JOIN organisms ON biosamples.fk_id_organism = organisms.pk_id_organism
-WHERE LOWER(organisms.scientific_name) = 'homo sapiens'
-GROUP BY tissues.pk_id_tissue, tissues.name_tissue
-ORDER BY total_accessibility_experiments DESC
-LIMIT 1;
+    FROM experiments
+        JOIN exp_da ON experiments.pk_id_exp = exp_da.pk_fk_id_exp
+        JOIN biosamples ON experiments.fk_id_biosample = biosamples.pk_id_biosample
+        JOIN tissues ON biosamples.fk_id_tissue = tissues.pk_id_tissue
+        JOIN organisms ON biosamples.fk_id_organism = organisms.pk_id_organism
+    WHERE LOWER(organisms.scientific_name) = 'homo sapiens'
+    GROUP BY tissues.pk_id_tissue, tissues.name_tissue
+    ORDER BY total_accessibility_experiments DESC
+    LIMIT 1;
 
 -- Which is the location of the highest expressed gene in human?
 SELECT 
@@ -252,6 +257,7 @@ SELECT
 
 
 -- quins gens tenen una llargada més gran que la mitjana
+/*
 WITH mitjana_longitud AS (
     SELECT AVG(gene_length) AS avg_len
         FROM gene_ass
@@ -264,9 +270,9 @@ SELECT
     JOIN gene_ass ON genes.pk_id_gene = gene_ass.pk_fk_id_gene
     CROSS JOIN mitjana_longitud m
     GROUP BY genes.pk_id_gene, genes.name_gene, m.avg_len
-    HAVING AVG(gene_ass.gene_length) > m.avg_len;
+        HAVING AVG(gene_ass.gene_length) > m.avg_len;
 
-
+*/
 
 
 -- UDF 1: Classificació qualitativa del valor d'expressió gènica
@@ -306,7 +312,7 @@ BEGIN
     
     SELECT COUNT(*) INTO total
     FROM experiments
-    WHERE fk_fk_id_user = p_id_user;
+    WHERE fk_fk_id_user = pk_id_user;
     
     RETURN IFNULL(total, 0);
 END
