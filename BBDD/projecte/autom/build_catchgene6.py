@@ -294,7 +294,6 @@ print("\nFASE 2: Descobrint atles d'òrgans d'EMBL-EBI Expression Atlas...")
 r_gxa = requests.get(url_gxa_list, headers=headers_json)
 gxa_exps = r_gxa.json().get("experiments", []) if r_gxa.status_code == 200 else []
 especies_gxa = set()
-PARAULES_NO_TEIXIT = ("week", "day", "month", "year", "male", "female", "larva", "embryo", "blastula", "pharyngula", "stage", "cell")
 gxa_tpm_buffer = []
 ensg_to_gene = {}
 
@@ -337,19 +336,58 @@ for exp in gxa_exps:
         r_meta = requests.get(url_gxa_det + acc, headers=headers_json, timeout=15)
     except requests.exceptions.RequestException:
         continue
-    g_to_real_tissue, g_to_sex, g_to_age = {}, {}, {}
+    g_to_real_tissue, g_to_sex, g_to_age, g_to_extra_tag = {}, {}, {}, {}
+
     if r_meta.status_code == 200:
-        for col_h in r_meta.json().get("columnHeaders", []):
+        meta_json = r_meta.json()
+        
+        factors_header = [f.lower() for f in meta_json.get("columnGroupHeaders", [])]
+        idx_tissue = next((i for i, f in enumerate(factors_header) if "organism part" in f or "tissue" in f), None)
+        idx_sex = next((i for i, f in enumerate(factors_header) if "sex" in f), None)
+        idx_age = next((i for i, f in enumerate(factors_header) if "age" in f or "developmental stage" in f), None)
+        idx_strain = next((i for i, f in enumerate(factors_header) if "strain" in f or "ecotype" in f or "breed" in f), None)
+
+        for col_h in meta_json.get("columnHeaders", []):
             gid_code = col_h.get("assayGroupId", "").strip()
-            f_val = col_h.get("factorValue", "").strip().lower()
-            if gid_code and f_val:
-                trossos = [t.strip() for t in f_val.split(",")]
-                g_to_real_tissue[gid_code] = next((t for t in trossos if not any(p in t for p in PARAULES_NO_TEIXIT)), "whole organism")
-                g_to_sex[gid_code] = "'female'" if "female" in f_val else ("'male'" if "male" in f_val else "'mixed'")
-                age_tros = next((t for t in trossos if any(u in t for u in ("year", "month", "week", "day"))), "")
-                if age_tros:
-                    unit_t = "week" if "week" in age_tros else ("day" if "day" in age_tros else ("month" if "month" in age_tros else "year"))
-                    g_to_age[gid_code] = parse_age_years(age_tros, unit_t)
+            f_val = col_h.get("factorValue", "").strip()
+            if not gid_code or not f_val:
+                continue
+                
+            trossos = [t.strip() for t in f_val.split(",")]
+            tags_mostra = []
+            
+            if idx_tissue is not None and idx_tissue < len(trossos) and trossos[idx_tissue]:
+                g_to_real_tissue[gid_code] = trossos[idx_tissue].lower()
+            else:
+                g_to_real_tissue[gid_code] = "whole organism"
+                
+            if idx_sex is not None and idx_sex < len(trossos):
+                sex_raw = trossos[idx_sex].lower()
+                if "female" in sex_raw:
+                    g_to_sex[gid_code] = "'female'"
+                elif "male" in sex_raw:
+                    g_to_sex[gid_code] = "'male'"
+                else:
+                    g_to_sex[gid_code] = "NULL"
+            else:
+                g_to_sex[gid_code] = "NULL"
+                
+            if idx_age is not None and idx_age < len(trossos) and trossos[idx_age]:
+                age_raw = trossos[idx_age].lower()
+                if any(u in age_raw for u in ("year", "month", "week", "day")):
+                    unit_t = "week" if "week" in age_raw else ("day" if "day" in age_raw else ("month" if "month" in age_raw else "year"))
+                    g_to_age[gid_code] = parse_age_years(age_raw, unit_t)
+                else:
+                    g_to_age[gid_code] = "NULL"
+                    tags_mostra.append(age_raw)
+            else:
+                g_to_age[gid_code] = "NULL"
+
+            if idx_strain is not None and idx_strain < len(trossos) and trossos[idx_strain]:
+                tags_mostra.append(trossos[idx_strain].strip())
+
+            if tags_mostra:
+                g_to_extra_tag[gid_code] = "_" + "_".join(tags_mostra)
 
     lines = [l for l in r_tsv.text.splitlines() if not l.startswith("#") and l.strip()]
     if len(lines) < 2:
@@ -376,10 +414,9 @@ for exp in gxa_exps:
     for row in reader:
         if len(row) < 3:
             continue
-        it_r = iter(row)
-        next(it_r)
-        g_sym = next(it_r).strip().upper()[:50]
-        if not g_sym:
+        g_id_ens = row[0].strip().upper()
+        g_sym = row[1].strip().upper()[:50]
+        if not g_id_ens and not g_sym:
             continue
         for col_idx, eid in exp_ids_col.items():
             if col_idx < len(row) and row[col_idx].strip() and row[col_idx].strip() != "-":
@@ -389,9 +426,11 @@ for exp in gxa_exps:
                     if len(parts) >= 3:
                         next(it_p)
                         next(it_p)
-                    gxa_tpm_buffer.append((eid, g_sym, round(float(next(it_p)), 2)))
+                    gxa_tpm_buffer.append((eid, g_id_ens, g_sym, round(float(next(it_p)), 2)))
                 except ValueError:
                     pass
+
+
 
 print(f"\nFASE 3: Escrivint {nom_fitxer} i descarregant genomes de les {len(orgs_dict)} espècies animals descobertes...")
 
@@ -417,12 +456,20 @@ with open(nom_fitxer, "w", encoding="utf-8") as f:
             continue
         print(f"  [UniProt] Descarregant genoma i GO de {sci} (TaxID {taxid})...")
         rev = " AND reviewed:true" if taxid in {9606, 10090, 7227, 6239, 7955, 9913, 9031} else ""
-        r = requests.get(url_uniprot, params={"query": f"organism_id:{taxid}{rev}", "format": "tsv", "fields": "gene_primary,cc_function,go_p,go_f,go_c,length,xref_ensembl", "compressed": "true"}, headers=headers_tsv)
+        r = requests.get(url_uniprot, params={"query": f"organism_id:{taxid}{rev}", "format": "tsv", "fields": "gene_primary,gene_synonym,cc_function,go_p,go_f,go_c,length,xref_ensembl", "compressed": "true"}, headers=headers_tsv)
         if r.status_code != 200:
             continue
             
         lector = csv.DictReader(io.StringIO(gzip.decompress(r.content).decode("utf-8")), delimiter="\t")
         gens_vistos_sp, comptador_sp, ass_list = set(), 0, org_to_ass.get(id_org, [])
+        
+        for fila in lector:
+            simbol = next(iter((fila.get("Gene Names (primary)") or "").split(" ")), "").strip().upper()[:50]
+            if not simbol or simbol.isdigit() or len(simbol) < 2 or simbol.startswith("-") or simbol in gens_vistos_sp:
+                continue
+
+            gens_vistos_sp.add(simbol)
+            if len(gens_per_org.get(id_org, [])) < 500:
         
         for fila in lector:
             simbol = next(iter((fila.get("Gene Names (primary)") or "").split(" ")), "").strip().upper()[:50]
@@ -457,9 +504,15 @@ with open(nom_fitxer, "w", encoding="utf-8") as f:
             else:
                 id_gen = gene_dict[simbol]
             for tros_ens in (fila.get("Ensembl") or "").split(";"):
-                if "[ENSG" in tros_ens:
-                    ensg_code = tros_ens.split("[")[1].split("]")[0].strip()
-                    ensg_to_gene[ensg_code] = id_gen
+                if "[" in tros_ens and "]" in tros_ens:
+                    ens_code = tros_ens.split("[")[1].split("]")[0].strip().upper()
+                    if ens_code:
+                        ensg_to_gene[ens_code] = id_gen
+
+            for syn in (fila.get("Gene Names (synonym)") or "").split(" "):
+                syn_clean = syn.strip().upper()[:50]
+                if syn_clean and syn_clean not in gene_dict:
+                    gene_dict[syn_clean] = id_gen
 
             gene_bp = int(fila.get("Length") or 300) * 35
             is_reverse = (sum(ord(c) for c in simbol) % 2 == 1)
@@ -479,8 +532,8 @@ with open(nom_fitxer, "w", encoding="utf-8") as f:
     f.write("COMMIT;\n\n")
 
     
-    for eid, g_sym, tpm_val in gxa_tpm_buffer:
-        id_gen_db = gene_dict.get(g_sym)
+    for eid, g_id_ens, g_sym, tpm_val in gxa_tpm_buffer:
+        id_gen_db = ensg_to_gene.get(g_id_ens) or gene_dict.get(g_sym)
         if id_gen_db:
             f.write(f"INSERT IGNORE INTO expression (pk_fk_id_exp, pk_fk_id_gene, expression_value) VALUES ({eid}, {id_gen_db}, {tpm_val});\n")
 
