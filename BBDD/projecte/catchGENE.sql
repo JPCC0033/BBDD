@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS biosamples(
     sex varchar(20) COMMENT "Admet NULL quan el sexe no consta o és una barreja de mostres. Dada real d'ENCODE / EMBL-EBI.'",
     name_bios varchar(50) UNIQUE NOT NULL COMMENT "Nom únic de cada mostra",
     fk_id_tissue int COMMENT "FK del teixit específic per a cada mostra",
-    fk_id_organism int "FK de l'organisme específic per a cada mostra",
-    CONSTRAINT age_unsigned CHECK (age >= 0) COMMENT "Check que no permet valors negatius a l'edat"
+    fk_id_organism int COMMENT "FK de l'organisme específic per a cada mostra",
+    CONSTRAINT age_unsigned CHECK (age >= 0)
 ) COMMENT = "Catàleg de mostres biològiques provinents d'un únic organisme i un únic teixit. D'una mostra es poden fer varis experiments";
     -- foreign keys biosamples
 ALTER TABLE biosamples 
@@ -290,7 +290,7 @@ CREATE TABLE IF NOT EXISTS gene_ass(
     pk_fk_id_gene int NOT NULL COMMENT "FK que vincula cada gen amb els diferents assemblies",
     TSS int COMMENT "Transcription Start Site simulat a la longitud proteica d'UniProt.",
     TES int COMMENT "Transcription End Site simulat a la longitud proteica d'UniProt",
-    gene_length decimal(10,2) GENERATED ALWAYS AS (TES - TSS) STORED COMMENT "Columna calculada automàticament (TES - TSS) en parells de bases",
+    gene_length decimal(10,2) GENERATED ALWAYS AS (ABS(TES - TSS)) STORED COMMENT "Columna calculada automàticament (TES - TSS) en parells de bases independentment de l'string positiva o negativa",
     CONSTRAINT pk_id_gene_ass PRIMARY KEY (pk_fk_id_ass, pk_fk_id_gene) COMMENT "Constraint que fa que les dues FKs siguin la PK"
 ) COMMENT = "Relació entre els gens i els assemblies. On cada gen té una posicio inicial i final diferent i àdhuc una llargada diferent";
 -- foreign keys
@@ -308,7 +308,7 @@ CREATE TABLE IF NOT EXISTS expression (
     expression_value DECIMAL(10, 2) NOT NULL COMMENT "Valor real en TPM (EMBL-EBI RNA-seq) o senyal simulada (HM/TF/DA d'ENCODE)",
     gene_expressed ENUM('YES', 'NO') COMMENT "Assignat dinàmicament per trigger segons el llindar de la tècnica (TR>=5, DA>=2, TF/HM>=1)",
     CONSTRAINT pk_id_expression PRIMARY KEY (pk_fk_id_exp, pk_fk_id_gene) COMMENT "Constraint que fa que les dues FKs siguin la PK",
-    CONSTRAINT chk_expression_positive CHECK (expression_value >= 0) COMMENT "Constraint perquè el valor sigui sempre positiu o 0"
+    CONSTRAINT chk_expression_positive CHECK (expression_value >= 0)
 ) COMMENT = "Relació entre els gens i els experiments. Cada gen té un valor diferent en cada experiment";
 
 ALTER TABLE expression 

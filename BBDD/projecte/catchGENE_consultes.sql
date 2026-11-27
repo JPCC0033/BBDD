@@ -11,6 +11,7 @@ CREATE OR REPLACE VIEW info_tablas AS
     FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = 'catchgene';
 
+
 -- consulta registres de la base de dades
 CREATE OR REPLACE VIEW registros_tablas AS
     SELECT 'tissues' AS Tabla, COUNT(*) AS Registros FROM tissues
@@ -79,6 +80,7 @@ CREATE OR REPLACE VIEW estructura_bbdd AS
 SELECT * FROM info_tablas;
 SELECT * FROM registros_tablas;
 SELECT * FROM estructura_bbdd;
+
 -- consultes
 -- quin 5 teixits tenen més gens en els nostres experiments
 SELECT 
@@ -135,7 +137,7 @@ SELECT tissues.name_tissue,
     ORDER BY number_of_genes DESC;
 
 -- Quins gens es descriuen com a kinase a la database?
-SELECT name_gene FROM genes; WHERE description_gene LIKE "%kinase%";
+SELECT name_gene FROM genes WHERE description_gene LIKE "%kinase%";
 
 -- All the genes expressed in liver
 SELECT DISTINCT 
@@ -148,28 +150,36 @@ SELECT DISTINCT
     WHERE LOWER(tissues.name_tissue) = 'liver'
       AND expression.gene_expressed = 'YES';
  
--- How many genes are expressed in the brain of macacs after adolescence and not in human
-SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS total_gens_exclusius_macac
+-- Estadístiques d'expressió gènica (mitjana, màxim i mínim) per organisme i teixit en experiments de transcripció
+SELECT organisms.scientific_name AS organisme,
+        tissues.name_tissue AS teixit,
+        COUNT(DISTINCT expression.pk_fk_id_gene) AS total_gens_expressats,
+        ROUND(AVG(expression.expression_value), 2) AS expressio_mitjana,
+        MAX(expression.expression_value) AS expressio_maxima,
+        MIN(expression.expression_value) AS expressio_minima
     FROM expression
         JOIN experiments ON expression.pk_fk_id_exp = experiments.pk_id_exp
+        JOIN exp_tr ON experiments.pk_id_exp = exp_tr.pk_fk_id_exp
         JOIN biosamples ON experiments.fk_id_biosample = biosamples.pk_id_biosample
         JOIN tissues ON biosamples.fk_id_tissue = tissues.pk_id_tissue
         JOIN organisms ON biosamples.fk_id_organism = organisms.pk_id_organism
-    WHERE LOWER(tissues.name_tissue) = 'brain'
-  AND expression.gene_expressed = 'YES'
-  AND biosamples.age > 10
-  AND LOWER(organisms.scientific_name) LIKE 'macac%'
-  AND expression.pk_fk_id_gene NOT IN (
-      SELECT DISTINCT expression.pk_fk_id_gene
-          FROM expression
-              JOIN experiments ON expression.pk_fk_id_exp = experiments.pk_id_exp
-              JOIN biosamples ON experiments.fk_id_biosample = biosamples.pk_id_biosample
-              JOIN tissues ON biosamples.fk_id_tissue = tissues.pk_id_tissue
-              JOIN organisms ON biosamples.fk_id_organism = organisms.pk_id_organism
-          WHERE LOWER(tissues.name_tissue) = 'brain'
-            AND expression.gene_expressed = 'YES'
-            AND LOWER(organisms.scientific_name) = 'homo sapiens'
- ); -- NO FUNCIONA
+    GROUP BY organisms.scientific_name, tissues.name_tissue
+    ORDER BY expressio_mitjana DESC;
+
+-- Llargada mitjana, màxima i mínima dels gens registrats a cada assembly
+SELECT 
+    organisms.scientific_name AS organisme,
+    assemblies.name_ass AS assembly,
+    assemblies.version_ass AS versio,
+    COUNT(gene_ass.pk_fk_id_gene) AS total_gens,
+    ROUND(AVG(gene_ass.gene_length), 2) AS llargada_mitjana_pb,
+    MAX(ABS(gene_ass.gene_length)) AS gen_mes_llarg_pb,
+    MIN(ABS(gene_ass.gene_length)) AS gen_mes_curt_pb
+FROM gene_ass
+    JOIN assemblies ON gene_ass.pk_fk_id_ass = assemblies.pk_id_ass
+    JOIN organisms ON assemblies.fk_id_organism = organisms.pk_id_organism
+GROUP BY organisms.scientific_name, assemblies.name_ass, assemblies.version_ass
+ORDER BY llargada_mitjana_pb DESC;
 
  -- How many genes are accessible in human liver that are not accessible in small intestine
 SELECT COUNT(DISTINCT expression.pk_fk_id_gene) AS accessible_genes_only_in_human_liver
